@@ -1747,6 +1747,7 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 		}
 		reg := trace.StartRegion(ctx, "WriteClientConn")
 		start := time.Now()
+		var res [][]string
 		for i := 0; i < rowCount; i++ {
 			data = data[0:4]
 			if binary {
@@ -1758,6 +1759,8 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 				reg.End()
 				return err
 			}
+			//split and null handle
+			res = append(res, parseRowBytes2String(data[4:]))
 			if err = cc.writePacket(data); err != nil {
 				reg.End()
 				return err
@@ -1767,8 +1770,24 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 		if stmtDetail != nil {
 			stmtDetail.WriteSQLRespDuration += time.Since(start)
 		}
+		logQuery(res,cc.ctx.GetSessionVars())
 	}
 	return cc.writeEOF(serverStatus)
+}
+
+func logQuery(res interface{}, vars *variable.SessionVars) {
+	if variable.ProcessGeneralLog.Load() && !vars.InRestrictedSQL {
+		logutil.BgLogger().Info("GENERAL_LOG",
+			zap.Uint64("conn", vars.ConnectionID),
+			zap.Stringer("user", vars.User),
+			zap.Int64("schemaVersion", vars.TxnCtx.SchemaVersion),
+			zap.Uint64("txnStartTS", vars.TxnCtx.StartTS),
+			zap.Uint64("forUpdateTS", vars.TxnCtx.GetForUpdateTS()),
+			zap.Bool("isReadConsistency", vars.IsIsolation(ast.ReadCommitted)),
+			zap.String("current_db", vars.CurrentDB),
+			zap.String("txn_mode", vars.GetReadableTxnMode()),
+			zap.Any("res", res))
+	}
 }
 
 // writeChunksWithFetchSize writes data from a Chunk, which filled data by a ResultSet, into a connection.

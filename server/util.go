@@ -58,6 +58,7 @@ func parseNullTermString(b []byte) (str []byte, remain []byte) {
 	return b[:off], b[off+1:]
 }
 
+//num row 的长度，n 是记录该长度所需要的字节数, n+m 是 row 和记录 row 长度的值整体占用的字节数
 func parseLengthEncodedInt(b []byte) (num uint64, isNull bool, n int) {
 	switch b[0] {
 	// 251: NULL
@@ -113,6 +114,23 @@ func dumpLengthEncodedInt(buffer []byte, n uint64) []byte {
 	}
 
 	return buffer
+}
+
+func parseRowBytes2String(b []byte) (res [] string) {
+	var step int
+	for len(b) > step {
+		data, isNull, l, err := parseLengthEncodedBytes(b[step:])
+		if err == io.EOF {
+			return
+		}
+		step += l
+		if isNull {
+			res = append(res, "null")
+			continue
+		}
+		res = append(res, string(data))
+	}
+	return
 }
 
 func parseLengthEncodedBytes(b []byte) ([]byte, bool, int, error) {
