@@ -1402,6 +1402,14 @@ func (cc *clientConn) handleIndexAdvise(ctx context.Context, indexAdviseInfo *ex
 	return nil
 }
 
+type stmtKeyType string
+
+func (k stmtKeyType) String() string {
+	return "stmt"
+}
+
+const stmtKey stmtKeyType = "stmt"
+
 // handleQuery executes the sql query string and writes result set or result ok to the client.
 // As the execution time of this function represents the performance of TiDB, we do time log and metrics here.
 // There is a special query `load data` that does not return result, which is handled differently.
@@ -1450,6 +1458,7 @@ func (cc *clientConn) handleQuery(ctx context.Context, sql string) (err error) {
 			// Save the point plan in Session so we don't need to build the point plan again.
 			cc.ctx.SetValue(plannercore.PointPlanKey, plannercore.PointPlanVal{Plan: pointPlans[i]})
 		}
+		cc.ctx.SetValue(stmtKey, stmt)
 		err = cc.handleStmt(ctx, stmt, parserWarns, i == len(stmts)-1)
 		if err != nil {
 			break
@@ -1724,7 +1733,7 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 	if stmtDetailRaw != nil {
 		stmtDetail = stmtDetailRaw.(*execdetails.StmtExecDetails)
 	}
-
+	sql := cc.ctx.Value(stmtKey).(ast.StmtNode).Text()
 	for {
 		// Here server.tidbResultSet implements Next method.
 		err := rs.Next(ctx, req)
@@ -1742,12 +1751,13 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 			gotColumnInfo = true
 		}
 		rowCount := req.NumRows()
+		res := [][]string{}
 		if rowCount == 0 {
+			logQuery(sql, res, cc.ctx.GetSessionVars())
 			break
 		}
 		reg := trace.StartRegion(ctx, "WriteClientConn")
 		start := time.Now()
-		var res [][]string
 		for i := 0; i < rowCount; i++ {
 			data = data[0:4]
 			if binary {
@@ -1770,12 +1780,12 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 		if stmtDetail != nil {
 			stmtDetail.WriteSQLRespDuration += time.Since(start)
 		}
-		logQuery(res,cc.ctx.GetSessionVars())
+		logQuery(sql, res, cc.ctx.GetSessionVars())
 	}
 	return cc.writeEOF(serverStatus)
 }
 
-func logQuery(res interface{}, vars *variable.SessionVars) {
+func logQuery(sql string, res interface{}, vars *variable.SessionVars) {
 	if variable.ProcessGeneralLog.Load() && !vars.InRestrictedSQL {
 		logutil.BgLogger().Info("GENERAL_LOG",
 			zap.Uint64("conn", vars.ConnectionID),
@@ -1786,6 +1796,7 @@ func logQuery(res interface{}, vars *variable.SessionVars) {
 			zap.Bool("isReadConsistency", vars.IsIsolation(ast.ReadCommitted)),
 			zap.String("current_db", vars.CurrentDB),
 			zap.String("txn_mode", vars.GetReadableTxnMode()),
+			zap.String("sql", sql),
 			zap.Any("res", res))
 	}
 }
