@@ -1733,7 +1733,11 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 	if stmtDetailRaw != nil {
 		stmtDetail = stmtDetailRaw.(*execdetails.StmtExecDetails)
 	}
-	sql := cc.ctx.Value(stmtKey).(ast.StmtNode).Text()
+	res := [][]string{}
+	sql := ""
+	if cc.ctx.Value(stmtKey) != nil {
+		sql = cc.ctx.Value(stmtKey).(ast.StmtNode).Text()
+	}
 	for {
 		// Here server.tidbResultSet implements Next method.
 		err := rs.Next(ctx, req)
@@ -1751,9 +1755,7 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 			gotColumnInfo = true
 		}
 		rowCount := req.NumRows()
-		res := [][]string{}
 		if rowCount == 0 {
-			logQuery(sql, res, cc.ctx.GetSessionVars())
 			break
 		}
 		reg := trace.StartRegion(ctx, "WriteClientConn")
@@ -1780,8 +1782,8 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 		if stmtDetail != nil {
 			stmtDetail.WriteSQLRespDuration += time.Since(start)
 		}
-		logQuery(sql, res, cc.ctx.GetSessionVars())
 	}
+	logQuery(sql, res, cc.ctx.GetSessionVars())
 	return cc.writeEOF(serverStatus)
 }
 
