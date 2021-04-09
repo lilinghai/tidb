@@ -1531,6 +1531,8 @@ func (s *session) ExecuteStmt(ctx context.Context, stmtNode ast.StmtNode) (sqlex
 		}
 		return nil, err
 	}
+	s.SetValue(util.StmtKey, stmt.OriginText())
+	s.SetValue(util.IsPreparedKey, stmt.IsPrepared())
 	return recordSet, nil
 }
 
@@ -1708,6 +1710,8 @@ func (s *session) preparedStmtExec(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+	s.SetValue(util.StmtKey, st.OriginText())
+	s.SetValue(util.IsPreparedKey, true)
 	sessionExecuteCompileDurationGeneral.Observe(time.Since(s.sessionVars.StartTime).Seconds())
 	logQuery(st.OriginText(), s.sessionVars)
 	return runStmt(ctx, s, st)

@@ -40,6 +40,7 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
+	"github.com/pingcap/tidb/util"
 	"io"
 	"net"
 	"runtime"
@@ -1001,7 +1002,6 @@ func (cc *clientConn) dispatch(ctx context.Context, data []byte) error {
 	case mysql.ComInitDB:
 		cc.ctx.SetProcessInfo("use "+dataStr, t, cmd, 0)
 	}
-
 	switch cmd {
 	case mysql.ComSleep:
 		// TODO: According to mysql document, this command is supposed to be used only internally.
@@ -1402,14 +1402,6 @@ func (cc *clientConn) handleIndexAdvise(ctx context.Context, indexAdviseInfo *ex
 	return nil
 }
 
-type stmtKeyType string
-
-func (k stmtKeyType) String() string {
-	return "stmt"
-}
-
-const stmtKey stmtKeyType = "stmt"
-
 // handleQuery executes the sql query string and writes result set or result ok to the client.
 // As the execution time of this function represents the performance of TiDB, we do time log and metrics here.
 // There is a special query `load data` that does not return result, which is handled differently.
@@ -1470,7 +1462,6 @@ func (cc *clientConn) handleQuery(ctx context.Context, sql string) (err error) {
 			// Save the point plan in Session so we don't need to build the point plan again.
 			cc.ctx.SetValue(plannercore.PointPlanKey, plannercore.PointPlanVal{Plan: pointPlans[i]})
 		}
-		cc.ctx.SetValue(stmtKey, stmt)
 		err = cc.handleStmt(ctx, stmt, parserWarns, i == len(stmts)-1)
 		if err != nil {
 			break
@@ -1747,9 +1738,17 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 	}
 	res := [][]string{}
 	sql := ""
-	if cc.ctx.Value(stmtKey) != nil {
-		sql = cc.ctx.Value(stmtKey).(ast.StmtNode).Text()
+	prepare := false
+	if cc.ctx.Session.Value(util.StmtKey) != nil {
+		sql = cc.ctx.Session.Value(util.StmtKey).(string)
 	}
+	if cc.ctx.Session.Value(util.IsPreparedKey) != nil {
+		prepare = cc.ctx.Session.Value(util.IsPreparedKey).(bool)
+	}
+	defer func() {
+		cc.ctx.Session.ClearValue(util.StmtKey)
+		cc.ctx.Session.ClearValue(util.IsPreparedKey)
+	}()
 	for {
 		// Here server.tidbResultSet implements Next method.
 		err := rs.Next(ctx, req)
@@ -1795,11 +1794,11 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 			stmtDetail.WriteSQLRespDuration += time.Since(start)
 		}
 	}
-	logQuery(sql, res, cc.ctx.GetSessionVars())
+	logQuery(sql, prepare, res, cc.ctx.GetSessionVars())
 	return cc.writeEOF(serverStatus)
 }
 
-func logQuery(sql string, res interface{}, vars *variable.SessionVars) {
+func logQuery(sql string, prepare bool, res interface{}, vars *variable.SessionVars) {
 	if variable.ProcessGeneralLog.Load() && !vars.InRestrictedSQL {
 		logutil.BgLogger().Info("GENERAL_LOG",
 			zap.Uint64("conn", vars.ConnectionID),
@@ -1810,6 +1809,7 @@ func logQuery(sql string, res interface{}, vars *variable.SessionVars) {
 			zap.Bool("isReadConsistency", vars.IsIsolation(ast.ReadCommitted)),
 			zap.String("current_db", vars.CurrentDB),
 			zap.String("txn_mode", vars.GetReadableTxnMode()),
+			zap.Bool("prepare", prepare),
 			zap.String("sql", sql),
 			zap.Any("res", res))
 	}

@@ -531,3 +531,19 @@ func GetLocalIP() string {
 	}
 	return ""
 }
+
+type isPreparedType string
+
+func (k isPreparedType) String() string {
+	return "prepare"
+}
+
+const IsPreparedKey isPreparedType = "prepare"
+
+type stmtKeyType string
+
+func (k stmtKeyType) String() string {
+	return "stmt"
+}
+
+const StmtKey stmtKeyType = "stmt"
