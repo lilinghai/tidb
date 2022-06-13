@@ -1453,12 +1453,12 @@ func (do *Domain) updateStatsWorker(ctx sessionctx.Context, owner owner.Manager)
 			return
 			// This channel is sent only by ddl owner.
 		case t := <-statsHandle.DDLEventCh():
-			logutil.BgLogger().Info("debug ddl start")
+			logutil.BgLogger().Info("debug ddl start", zap.String("event", t.String()))
 			err := statsHandle.HandleDDLEvent(t)
 			if err != nil {
 				logutil.BgLogger().Info("handle ddl event failed", zap.Error(err))
 			}
-			logutil.BgLogger().Info("debug ddl end")
+			logutil.BgLogger().Info("debug ddl end", zap.String("event", t.String()))
 		case <-deltaUpdateTicker.C:
 			logutil.BgLogger().Info("debug delta update start")
 			err := statsHandle.DumpStatsDeltaToKV(handle.DumpDelta)
