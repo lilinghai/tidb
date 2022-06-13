@@ -27,7 +27,9 @@ import (
 	"github.com/pingcap/tidb/sessionctx/variable"
 	"github.com/pingcap/tidb/sessiontxn"
 	"github.com/pingcap/tidb/types"
+	"github.com/pingcap/tidb/util/logutil"
 	"github.com/pingcap/tidb/util/sqlexec"
+	"go.uber.org/zap"
 )
 
 // HandleDDLEvent begins to process a ddl task.
@@ -84,6 +86,7 @@ func (h *Handle) updateGlobalStats(tblInfo *model.TableInfo) error {
 	is := sessiontxn.GetTxnManager(sctx).GetTxnInfoSchema()
 	h.pool.Put(se)
 	globalStats, err := h.TableStatsFromStorage(tblInfo, tableID, true, 0)
+	logutil.BgLogger().Info("update global stats [get]", zap.Any("stats", *globalStats))
 	if err != nil {
 		return err
 	}
@@ -115,6 +118,8 @@ func (h *Handle) updateGlobalStats(tblInfo *model.TableInfo) error {
 	}
 	// Generate the new column global-stats
 	newColGlobalStats, err := h.mergePartitionStats2GlobalStats(h.mu.ctx, opts, is, tblInfo, 0, nil)
+	logutil.BgLogger().Info("update global stats [merge1]", zap.Any("stats", *newColGlobalStats))
+
 	if err != nil {
 		return err
 	}
@@ -126,6 +131,7 @@ func (h *Handle) updateGlobalStats(tblInfo *model.TableInfo) error {
 			return err
 		}
 	}
+	logutil.BgLogger().Info("update global stats [save1]", zap.Any("stats", *newColGlobalStats))
 
 	// Generate the new index global-stats
 	globalIdxStatsTopNNum, globalIdxStatsBucketNum := 0, 0
@@ -145,6 +151,8 @@ func (h *Handle) updateGlobalStats(tblInfo *model.TableInfo) error {
 			opts[ast.AnalyzeOptNumBuckets] = uint64(globalIdxStatsBucketNum)
 		}
 		newIndexGlobalStats, err := h.mergePartitionStats2GlobalStats(h.mu.ctx, opts, is, tblInfo, 1, []int64{int64(idx)})
+		logutil.BgLogger().Info("update global stats [merge2]", zap.Any("stats", *newColGlobalStats))
+
 		if err != nil {
 			return err
 		}
@@ -156,6 +164,8 @@ func (h *Handle) updateGlobalStats(tblInfo *model.TableInfo) error {
 				return err
 			}
 		}
+		logutil.BgLogger().Info("update global stats [save2]", zap.Any("stats", *newColGlobalStats))
+
 	}
 	return nil
 }
