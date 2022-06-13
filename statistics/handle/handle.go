@@ -452,9 +452,13 @@ func (h *Handle) mergePartitionStats2GlobalStats(sc sessionctx.Context, opts map
 	}
 
 	for _, partitionID := range partitionIDs {
+		logutil.BgLogger().Info("update global stats [for partition]", zap.Any("global stats", partitionID))
+
 		h.mu.Lock()
 		partitionTable, ok := h.getTableByPhysicalID(is, partitionID)
 		h.mu.Unlock()
+		logutil.BgLogger().Info("update global stats [for partition lock]", zap.Any("global stats", partitionTable))
+
 		if !ok {
 			err = errors.Errorf("unknown physical ID %d in stats meta table, maybe it has been dropped", partitionID)
 			return
@@ -462,6 +466,8 @@ func (h *Handle) mergePartitionStats2GlobalStats(sc sessionctx.Context, opts map
 		tableInfo := partitionTable.Meta()
 		var partitionStats *statistics.Table
 		partitionStats, err = h.TableStatsFromStorage(tableInfo, partitionID, true, 0)
+		logutil.BgLogger().Info("update global stats [for partition]", zap.Any("global stats", partitionStats))
+
 		if err != nil {
 			return
 		}

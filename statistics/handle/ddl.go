@@ -151,6 +151,7 @@ func (h *Handle) updateGlobalStats(tblInfo *model.TableInfo) error {
 		if globalIdxStatsBucketNum != 0 {
 			opts[ast.AnalyzeOptNumBuckets] = uint64(globalIdxStatsBucketNum)
 		}
+		logutil.BgLogger().Info("update global stats [merge2 begin]", zap.Any("stats", *newColGlobalStats))
 		newIndexGlobalStats, err := h.mergePartitionStats2GlobalStats(h.mu.ctx, opts, is, tblInfo, 1, []int64{int64(idx)})
 		logutil.BgLogger().Info("update global stats [merge2]", zap.Any("stats", *newColGlobalStats))
 
