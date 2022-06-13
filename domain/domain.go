@@ -1453,43 +1453,57 @@ func (do *Domain) updateStatsWorker(ctx sessionctx.Context, owner owner.Manager)
 			return
 			// This channel is sent only by ddl owner.
 		case t := <-statsHandle.DDLEventCh():
+			logutil.BgLogger().Info("debug ddl start")
 			err := statsHandle.HandleDDLEvent(t)
 			if err != nil {
-				logutil.BgLogger().Debug("handle ddl event failed", zap.Error(err))
+				logutil.BgLogger().Info("handle ddl event failed", zap.Error(err))
 			}
+			logutil.BgLogger().Info("debug ddl end")
 		case <-deltaUpdateTicker.C:
+			logutil.BgLogger().Info("debug delta update start")
 			err := statsHandle.DumpStatsDeltaToKV(handle.DumpDelta)
 			if err != nil {
-				logutil.BgLogger().Debug("dump stats delta failed", zap.Error(err))
+				logutil.BgLogger().Info("dump stats delta failed", zap.Error(err))
 			}
 			statsHandle.UpdateErrorRate(do.InfoSchema())
+			logutil.BgLogger().Info("debug delta update end")
 		case <-loadFeedbackTicker.C:
+			logutil.BgLogger().Info("debug load feedback start")
 			statsHandle.UpdateStatsByLocalFeedback(do.InfoSchema())
 			if !owner.IsOwner() {
+				logutil.BgLogger().Info("debug load feedback end")
 				continue
 			}
 			err := statsHandle.HandleUpdateStats(do.InfoSchema())
 			if err != nil {
-				logutil.BgLogger().Debug("update stats using feedback failed", zap.Error(err))
+				logutil.BgLogger().Info("update stats using feedback failed", zap.Error(err))
 			}
+			logutil.BgLogger().Info("debug load feedback end")
 		case <-dumpFeedbackTicker.C:
+			logutil.BgLogger().Info("debug stats feedback end")
 			err := statsHandle.DumpStatsFeedbackToKV()
 			if err != nil {
-				logutil.BgLogger().Debug("dump stats feedback failed", zap.Error(err))
+				logutil.BgLogger().Info("dump stats feedback failed", zap.Error(err))
 			}
+			logutil.BgLogger().Info("debug dump stats feedback end")
 		case <-gcStatsTicker.C:
+			logutil.BgLogger().Info("debug gc stats start")
 			if !owner.IsOwner() {
+				logutil.BgLogger().Info("debug gc stats end")
 				continue
 			}
 			err := statsHandle.GCStats(do.InfoSchema(), do.DDL().GetLease())
 			if err != nil {
-				logutil.BgLogger().Debug("GC stats failed", zap.Error(err))
+				logutil.BgLogger().Info("GC stats failed", zap.Error(err))
 			}
+			logutil.BgLogger().Info("debug gc stats end")
 		case <-dumpColStatsUsageTicker.C:
+			logutil.BgLogger().Info("debug dump col stats usage start")
 			err := statsHandle.DumpColStatsUsageToKV()
 			if err != nil {
-				logutil.BgLogger().Debug("dump column stats usage failed", zap.Error(err))
+				logutil.BgLogger().Info("dump column stats usage failed", zap.Error(err))
 			}
+			logutil.BgLogger().Info("debug dump col stats usage end")
 		}
 	}
 }

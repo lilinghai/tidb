@@ -360,6 +360,7 @@ func (d *ddl) RegisterStatsHandle(h *handle.Handle) {
 // give up notify and log it.
 func asyncNotifyEvent(d *ddlCtx, e *util.Event) {
 	if d.ddlEventCh != nil {
+		logutil.BgLogger().Info("debug ddl notify event info", zap.String("event", e.String()))
 		if d.lease == 0 {
 			// If lease is 0, it's always used in test.
 			select {

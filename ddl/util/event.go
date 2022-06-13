@@ -37,10 +37,13 @@ func (e *Event) String() string {
 	}
 	if e.PartInfo != nil {
 		ids := make([]int64, 0, len(e.PartInfo.Definitions))
+		names := make([]string, 0, len(e.PartInfo.Definitions))
 		for _, def := range e.PartInfo.Definitions {
 			ids = append(ids, def.ID)
+			names = append(names, def.Name.String())
 		}
 		ret += fmt.Sprintf(", Partition IDs: %v", ids)
+		ret += fmt.Sprintf(", Partition Names: %v", names)
 	}
 	for _, columnInfo := range e.ColumnInfos {
 		ret += fmt.Sprintf(", Column ID: %d, Column Name %s", columnInfo.ID, columnInfo.Name)
