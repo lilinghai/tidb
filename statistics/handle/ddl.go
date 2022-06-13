@@ -135,6 +135,7 @@ func (h *Handle) updateGlobalStats(tblInfo *model.TableInfo) error {
 
 	// Generate the new index global-stats
 	globalIdxStatsTopNNum, globalIdxStatsBucketNum := 0, 0
+	logutil.BgLogger().Info("update global stats [indices]", zap.Any("stats", tblInfo.Indices))
 	for idx := range tblInfo.Indices {
 		globalIdxStatsTopN := globalStats.Indices[int64(idx)].TopN
 		if globalIdxStatsTopN != nil && len(globalIdxStatsTopN.TopN) > globalIdxStatsTopNNum {
@@ -167,6 +168,7 @@ func (h *Handle) updateGlobalStats(tblInfo *model.TableInfo) error {
 		logutil.BgLogger().Info("update global stats [save2]", zap.Any("stats", *newColGlobalStats))
 
 	}
+	logutil.BgLogger().Info("update global stats [done]", zap.Any("stats", *newColGlobalStats))
 	return nil
 }
 
