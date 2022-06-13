@@ -499,12 +499,14 @@ func (h *Handle) mergePartitionStats2GlobalStats(sc sessionctx.Context, opts map
 			allFms[i] = append(allFms[i], fms)
 		}
 	}
+	logutil.BgLogger().Info("update global stats [partition]", zap.Any("global stats", globalStats.Num))
 
 	// After collect all of the statistics from the partition-level stats,
 	// we should merge them together.
 	for i := 0; i < globalStats.Num; i++ {
 		// Merge CMSketch
 		globalStats.Cms[i] = allCms[i][0].Copy()
+		logutil.BgLogger().Info("update global stats [merge]", zap.Any("global stats", " Merge CMSketch"))
 		for j := 1; j < partitionNum; j++ {
 			err = globalStats.Cms[i].MergeCMSketch(allCms[i][j])
 			if err != nil {
@@ -520,23 +522,27 @@ func (h *Handle) mergePartitionStats2GlobalStats(sc sessionctx.Context, opts map
 		if err != nil {
 			return
 		}
+		logutil.BgLogger().Info("update global stats [merge]", zap.Any("global stats", " Merge topn"))
 
 		// Merge histogram
 		globalStats.Hg[i], err = statistics.MergePartitionHist2GlobalHist(sc.GetSessionVars().StmtCtx, allHg[i], popedTopN, int64(opts[ast.AnalyzeOptNumBuckets]), isIndex == 1)
 		if err != nil {
 			return
 		}
+		logutil.BgLogger().Info("update global stats [merge]", zap.Any("global stats", " Merge hist"))
 
 		// NOTICE: after merging bucket NDVs have the trend to be underestimated, so for safe we don't use them.
 		for j := range globalStats.Hg[i].Buckets {
 			globalStats.Hg[i].Buckets[j].NDV = 0
 		}
+		logutil.BgLogger().Info("update global stats [merge]", zap.Any("global stats", " Merge buckets"))
 
 		// Update NDV of global-level stats
 		globalStats.Fms[i] = allFms[i][0].Copy()
 		for j := 1; j < partitionNum; j++ {
 			globalStats.Fms[i].MergeFMSketch(allFms[i][j])
 		}
+		logutil.BgLogger().Info("update global stats [merge]", zap.Any("global stats", " Merge fmsketch"))
 
 		// update the NDV
 		globalStatsNDV := globalStats.Fms[i].NDV()
