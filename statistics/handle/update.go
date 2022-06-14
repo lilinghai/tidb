@@ -576,6 +576,7 @@ func (h *Handle) dumpTableStatColSizeToKV(id int64, delta variable.TableDelta) e
 		}
 		values = append(values, fmt.Sprintf("(%d, 0, %d, 0, %d)", id, histID, deltaColSize))
 	}
+	// comment pr test
 	if len(values) == 0 {
 		return nil
 	}
