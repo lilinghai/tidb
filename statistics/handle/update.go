@@ -473,6 +473,7 @@ func (h *Handle) DumpStatsDeltaToKV(mode dumpMode) error {
 	deltaMap := h.globalMap.data
 	h.globalMap.data = make(tableDeltaMap)
 	h.globalMap.Unlock()
+	logutil.BgLogger().Info("debug delta update start", zap.Any("data", deltaMap))
 	defer func() {
 		h.globalMap.Lock()
 		deltaMap.merge(h.globalMap.data)

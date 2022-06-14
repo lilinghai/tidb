@@ -452,12 +452,10 @@ func (h *Handle) mergePartitionStats2GlobalStats(sc sessionctx.Context, opts map
 	}
 
 	for _, partitionID := range partitionIDs {
-		logutil.BgLogger().Info("update global stats [for partition]", zap.Any("global stats", partitionID))
 
 		h.mu.Lock()
 		partitionTable, ok := h.getTableByPhysicalID(is, partitionID)
 		h.mu.Unlock()
-		logutil.BgLogger().Info("update global stats [for partition lock]", zap.Any("global stats", partitionTable))
 
 		if !ok {
 			err = errors.Errorf("unknown physical ID %d in stats meta table, maybe it has been dropped", partitionID)
@@ -466,7 +464,6 @@ func (h *Handle) mergePartitionStats2GlobalStats(sc sessionctx.Context, opts map
 		tableInfo := partitionTable.Meta()
 		var partitionStats *statistics.Table
 		partitionStats, err = h.TableStatsFromStorage(tableInfo, partitionID, true, 0)
-		logutil.BgLogger().Info("update global stats [for partition]", zap.Any("global stats", partitionStats))
 
 		if err != nil {
 			return
@@ -505,7 +502,6 @@ func (h *Handle) mergePartitionStats2GlobalStats(sc sessionctx.Context, opts map
 			allFms[i] = append(allFms[i], fms)
 		}
 	}
-	logutil.BgLogger().Info("update global stats [partition]", zap.Any("global stats", globalStats.Num))
 
 	// After collect all of the statistics from the partition-level stats,
 	// we should merge them together.
@@ -785,13 +781,13 @@ func (h *Handle) indexStatsFromStorage(reader *statsReader, row chunk.Row, table
 		errorRate = idx.ErrorRate
 	}
 	for _, idxInfo := range tableInfo.Indices {
-		logutil.BgLogger().Info("update global stats [index stats]", zap.Int64("histid", histID),zap.Any("idx info", idxInfo), zap.String("table", tableInfo.Name.O))
+		// logutil.BgLogger().Info("update global stats [index stats]", zap.Int64("histid", histID),zap.Any("idx info", idxInfo), zap.String("table", tableInfo.Name.O))
 
 		if histID != idxInfo.ID {
 			continue
 		}
 		if idx == nil || idx.LastUpdateVersion < histVer {
-			logutil.BgLogger().Info("update global stats [index stats2]", zap.Int64("histid", histID),zap.Any("idx info", idxInfo), zap.String("table", tableInfo.Name.O))
+			// logutil.BgLogger().Info("update global stats [index stats2]", zap.Int64("histid", histID),zap.Any("idx info", idxInfo), zap.String("table", tableInfo.Name.O))
 
 			hg, err := h.histogramFromStorage(reader, table.PhysicalID, histID, types.NewFieldType(mysql.TypeBlob), distinct, 1, histVer, nullCount, 0, 0)
 			if err != nil {
