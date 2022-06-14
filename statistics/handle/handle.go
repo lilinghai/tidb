@@ -785,10 +785,14 @@ func (h *Handle) indexStatsFromStorage(reader *statsReader, row chunk.Row, table
 		errorRate = idx.ErrorRate
 	}
 	for _, idxInfo := range tableInfo.Indices {
+		logutil.BgLogger().Info("update global stats [index stats]", zap.Int64("histid", histID),zap.Any("idx info", idxInfo), zap.String("table", tableInfo.Name.O))
+
 		if histID != idxInfo.ID {
 			continue
 		}
 		if idx == nil || idx.LastUpdateVersion < histVer {
+			logutil.BgLogger().Info("update global stats [index stats2]", zap.Int64("histid", histID),zap.Any("idx info", idxInfo), zap.String("table", tableInfo.Name.O))
+
 			hg, err := h.histogramFromStorage(reader, table.PhysicalID, histID, types.NewFieldType(mysql.TypeBlob), distinct, 1, histVer, nullCount, 0, 0)
 			if err != nil {
 				return errors.Trace(err)
@@ -809,7 +813,7 @@ func (h *Handle) indexStatsFromStorage(reader *statsReader, row chunk.Row, table
 	if idx != nil {
 		table.Indices[histID] = idx
 	} else {
-		logutil.BgLogger().Debug("we cannot find index id in table info. It may be deleted.", zap.Int64("indexID", histID), zap.String("table", tableInfo.Name.O))
+		logutil.BgLogger().Info("we cannot find index id in table info. It may be deleted.", zap.Int64("indexID", histID), zap.String("table", tableInfo.Name.O))
 	}
 	return nil
 }
