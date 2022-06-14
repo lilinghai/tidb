@@ -118,7 +118,7 @@ func (h *Handle) updateGlobalStats(tblInfo *model.TableInfo) error {
 	}
 	// Generate the new column global-stats
 	newColGlobalStats, err := h.mergePartitionStats2GlobalStats(h.mu.ctx, opts, is, tblInfo, 0, nil)
-	logutil.BgLogger().Info("update global stats [merge1]", zap.Any("stats", *&newColGlobalStats.Num))
+	logutil.BgLogger().Info("update global stats [merge1]", zap.Any("stats", newColGlobalStats.Num))
 
 	if err != nil {
 		return err
@@ -131,17 +131,17 @@ func (h *Handle) updateGlobalStats(tblInfo *model.TableInfo) error {
 			return err
 		}
 	}
-	logutil.BgLogger().Info("update global stats [save1]", zap.Any("stats", *&newColGlobalStats.Num))
+	logutil.BgLogger().Info("update global stats [save1]", zap.Any("stats", newColGlobalStats.Num))
 
 	// Generate the new index global-stats
 	globalIdxStatsTopNNum, globalIdxStatsBucketNum := 0, 0
 	logutil.BgLogger().Info("update global stats [indices]", zap.Any("table info", tblInfo.Indices), zap.Any("global stats indices", globalStats.Indices))
-	for idx := range tblInfo.Indices {
-		globalIdxStatsTopN := globalStats.Indices[int64(idx)].TopN
+	for _,index := range tblInfo.Indices {
+		globalIdxStatsTopN := globalStats.Indices[index.ID].TopN
 		if globalIdxStatsTopN != nil && len(globalIdxStatsTopN.TopN) > globalIdxStatsTopNNum {
 			globalIdxStatsTopNNum = len(globalIdxStatsTopN.TopN)
 		}
-		globalIdxStats := globalStats.Indices[int64(idx)]
+		globalIdxStats := globalStats.Indices[index.ID]
 		if globalIdxStats != nil && len(globalIdxStats.Buckets) > globalIdxStatsBucketNum {
 			globalIdxStatsBucketNum = len(globalIdxStats.Buckets)
 		}
@@ -151,9 +151,9 @@ func (h *Handle) updateGlobalStats(tblInfo *model.TableInfo) error {
 		if globalIdxStatsBucketNum != 0 {
 			opts[ast.AnalyzeOptNumBuckets] = uint64(globalIdxStatsBucketNum)
 		}
-		logutil.BgLogger().Info("update global stats [merge2 begin]", zap.Any("stats", *newColGlobalStats))
-		newIndexGlobalStats, err := h.mergePartitionStats2GlobalStats(h.mu.ctx, opts, is, tblInfo, 1, []int64{int64(idx)})
-		logutil.BgLogger().Info("update global stats [merge2]", zap.Any("stats", *newColGlobalStats))
+		logutil.BgLogger().Info("update global stats [merge2 begin]", zap.Any("stats", newColGlobalStats.Num))
+		newIndexGlobalStats, err := h.mergePartitionStats2GlobalStats(h.mu.ctx, opts, is, tblInfo, 1, []int64{index.ID})
+		logutil.BgLogger().Info("update global stats [merge2]", zap.Any("stats", newColGlobalStats.Num))
 
 		if err != nil {
 			return err
@@ -166,10 +166,10 @@ func (h *Handle) updateGlobalStats(tblInfo *model.TableInfo) error {
 				return err
 			}
 		}
-		logutil.BgLogger().Info("update global stats [save2]", zap.Any("stats", *newColGlobalStats))
+		logutil.BgLogger().Info("update global stats [save2]", zap.Any("stats", newColGlobalStats.Num))
 
 	}
-	logutil.BgLogger().Info("update global stats [done]", zap.Any("stats", *newColGlobalStats))
+	logutil.BgLogger().Info("update global stats [done]", zap.Any("stats", newColGlobalStats.Num))
 	return nil
 }
 
