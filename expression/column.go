@@ -30,6 +30,8 @@ import (
 	"github.com/pingcap/tidb/types/json"
 	"github.com/pingcap/tidb/util/chunk"
 	"github.com/pingcap/tidb/util/codec"
+	"github.com/pingcap/tidb/util/logutil"
+	"go.uber.org/zap"
 )
 
 // CorrelatedColumn stands for a column in a correlated sub query.
@@ -505,6 +507,7 @@ func (col *Column) ResolveIndices(schema *Schema) (Expression, error) {
 func (col *Column) resolveIndices(schema *Schema) error {
 	col.Index = schema.ColumnIndex(col)
 	if col.Index == -1 {
+		logutil.BgLogger().Info("column info", zap.String("col.OrigName", col.OrigName))
 		return errors.Errorf("Can't find column %s in schema %s", col, schema)
 	}
 	return nil

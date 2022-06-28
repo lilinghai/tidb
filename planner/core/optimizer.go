@@ -510,7 +510,38 @@ func physicalOptimize(logic LogicalPlan, planCounter *PlanCounterTp) (plan Physi
 	if t.invalid() {
 		return nil, 0, ErrInternal.GenWithStackByArgs("Can't find a proper physical plan for this query")
 	}
+	logutil.BgLogger().Info("info",
+		zap.Any("parent", t.plan().ExplainID()),
+		zap.Any("parent", t.plan().ExplainInfo()),
+		zap.Any("parent", t.plan().Schema()),
+		zap.Any("parent len", len(t.plan().Children())))
 
+	if t.plan().Children() != nil && len(t.plan().Children()) > 0 {
+		child := t.plan().Children()[0]
+		logutil.BgLogger().Info("info",
+			zap.Any("children", child.ExplainID()),
+			zap.Any("children", child.ExplainInfo()),
+			zap.Any("children", child.Schema()),
+			zap.Any("children len", len(child.Children())))
+
+		if child.Children() != nil && len(child.Children()) > 0 {
+			child2 := child.Children()[0]
+			logutil.BgLogger().Info("info",
+				zap.Any("children2", child2.ExplainID()),
+				zap.Any("children2", child2.ExplainInfo()),
+				zap.Any("children2", child2.Schema()),
+				zap.Any("children len", len(child2.Children())))
+
+			if child2.Children() != nil && len(child2.Children()) > 0 {
+				child3 := child2.Children()[0]
+				logutil.BgLogger().Info("info",
+					zap.Any("children3", child3.ExplainID()),
+					zap.Any("children3", child3.ExplainInfo()),
+					zap.Any("children3", child3.Schema()),
+					zap.Any("children len", len(child3.Children())))
+			}
+		}
+	}
 	err = t.plan().ResolveIndices()
 	return t.plan(), t.cost(), err
 }

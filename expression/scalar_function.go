@@ -31,6 +31,8 @@ import (
 	"github.com/pingcap/tidb/util/chunk"
 	"github.com/pingcap/tidb/util/codec"
 	"github.com/pingcap/tidb/util/hack"
+	"github.com/pingcap/tidb/util/logutil"
+	"go.uber.org/zap"
 )
 
 // ScalarFunction is the function that returns a value.
@@ -463,11 +465,29 @@ func (sf *ScalarFunction) ResolveIndices(schema *Schema) (Expression, error) {
 	err := newSf.resolveIndices(schema)
 	return newSf, err
 }
+// mysql> explain select count(*) from t group by a having ifnull(min(c),min(b));
+// +---------------------------+---------+-----------+---------------+--------------------------------------------------+
+// | id                        | estRows | task      | access object | operator info                                    |
+// +---------------------------+---------+-----------+---------------+--------------------------------------------------+
+// | Projection_8              | 0.80    | root      |               | 1->Column#7                                      |
+// | └─TableReader_11          | 0.80    | root      |               | data:Selection_10                                |
+// |   └─Selection_10          | 0.80    | cop[tikv] |               | ifnull(test.t.c, cast(test.t.b, var_string(20))) |
+// |     └─TableFullScan_9     | 1.00    | cop[tikv] | table:t       | keep order:false, stats:pseudo                   |
+// +---------------------------+---------+-----------+---------------+--------------------------------------------------+
+// 4 rows in set (0.00 sec)
 
+// mysql> explain select count(*) from t group by a having ifnull(min(b),min(c));
+// ERROR 1105 (HY000): Can't find column Column#5 in schema Column: [test.t.c] Unique key: [[test.t.a]]
+
+
+// [2022/06/24 17:39:56.440 +08:00] [INFO] [scalar_function.go:477] [info] [args="[\"Column#5\"]"] [schema="Column: [test.t.c] Unique key: [[test.t.a]]"] [function="cast(Column#5, var_string(20))"] [error="Can't find column Column#5 in schema Column: [test.t.c] Unique key: [[test.t.a]]"]
+// [2022/06/24 17:39:56.440 +08:00] [INFO] [scalar_function.go:477] [info] [args="[\"cast(Column#5, var_string(20))\",\"test.t.c\"]"] [schema="Column: [test.t.c] Unique key: [[test.t.a]]"] [function="ifnull(cast(Column#5, var_string(20)), test.t.c)"] [error="Can't find column Column#5 in schema Column: [test.t.c] Unique key: [[test.t.a]]"]
+// [2022/06/24 17:39:56.441 +08:00] [WARN] [session.go:1931] ["compile SQL failed"] [conn=2199023255955] [error="Can't find column Column#5 in schema Column: [test.t.c] Unique key: [[test.t.a]]"] [SQL="select count(*) from t group by a having ifnull(min(b),min(c))"]
 func (sf *ScalarFunction) resolveIndices(schema *Schema) error {
 	for _, arg := range sf.GetArgs() {
 		err := arg.resolveIndices(schema)
 		if err != nil {
+			logutil.BgLogger().Info("info", zap.Any("args", sf.GetArgs()),zap.Any("schema",schema),zap.Any("function",sf),zap.Error(err))
 			return err
 		}
 	}
